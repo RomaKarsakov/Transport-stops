@@ -29,6 +29,17 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import java.util.ArrayList
+import android.webkit.WebSettings
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.views.MapView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 
 class MainActivity : ComponentActivity() {
@@ -40,6 +51,58 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+@Composable
+fun OsmMap() {
+    val context = LocalContext.current
+    val mapView = rememberMapView()
+
+    AndroidView(
+        factory = { mapView },
+        modifier = Modifier.fillMaxSize()
+    ) { view ->
+        with(view) {
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+
+            controller.setZoom(12.0)
+            controller.setCenter(org.osmdroid.util.GeoPoint(56.8519, 60.6122))
+        }
+    }
+
+    // Управление жизненным циклом
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                else -> {}
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            mapView.onDetach()
+        }
+    }
+}
+
+@Composable
+fun rememberMapView(): MapView {
+    val context = LocalContext.current
+    Configuration.getInstance().apply {
+        userAgentValue = context.packageName
+        // Для отладки включите логирование
+        setDebugMode(true)
+    }
+    return remember {
+        MapView(context).apply {
+            Configuration.getInstance().userAgentValue = context.packageName
+        }
+    }
+
 }
 
 @Composable
@@ -147,6 +210,9 @@ fun Screen3(navController: NavController, title: String){
             onClick = { navController.popBackStack() },
         ) {
             Text("Назад")
+        }
+        Box(modifier = Modifier) {
+            OsmMap()
         }
     }
 }
