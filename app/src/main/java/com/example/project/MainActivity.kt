@@ -2,6 +2,7 @@ package com.example.project
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,9 +39,28 @@ import org.osmdroid.views.MapView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.LocalLifecycleOwner
-
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.IOException
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.overlay.Marker
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,9 +73,60 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+class TransportRepository {
+    private val client = OkHttpClient()
+    private val baseUrl = "?"
+
+    suspend fun getCoordinates(routeNumber: String): List<Pair<Double, Double>> {
+        val request = Request.Builder()
+            .url("$baseUrl/$routeNumber")
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) throw IOException("Ошибка: ${response.code}")
+
+            val json = response.body?.string() ?: throw IOException("Пустой ответ")
+            parseCoordinates(json)
+        }
+    }
+
+    private fun parseCoordinates(json: String): List<Pair<Double, Double>> {
+        val type = object : TypeToken<List<List<Double>>>() {}.type
+        return Gson().fromJson<List<List<Double>>>(json, type)
+            .map { it[0] to it[1] }
+    }
+}
+
+
+class TransportViewModel : ViewModel() {
+    private val repository = TransportRepository()
+
+    private val _coordinates = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
+
+    val coordinates: StateFlow<List<Pair<Double, Double>>> = _coordinates
+
+    private var updateJob: Job? = null
+
+    fun startUpdates(routeNumber: String) {
+        updateJob?.cancel()
+
+        updateJob = viewModelScope.launch {
+            while (true) {
+                try {
+                    _coordinates.value = repository.getCoordinates(routeNumber)
+                } catch (e: Exception) {
+                    Log.e("Transport", "Ошибка обновления", e)
+                }
+                delay(10000)
+            }
+        }
+    }
+}
+
+
 @Composable
-fun OsmMap() {
-    val context = LocalContext.current
+fun OsmMap(coordinates: List<Pair<Double, Double>>, routeNumber: String) {
     val mapView = rememberMapView()
 
     AndroidView(
@@ -63,6 +134,14 @@ fun OsmMap() {
         modifier = Modifier.fillMaxSize()
     ) { view ->
         with(view) {
+            view.overlays.clear()
+            coordinates.forEach { (lat, lon) ->
+                val marker = Marker(mapView)
+                marker.position = GeoPoint(lat,lon)
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                mapView.overlays.add(marker)
+                mapView.invalidate()
+            }
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
 
@@ -94,8 +173,7 @@ fun rememberMapView(): MapView {
     val context = LocalContext.current
     Configuration.getInstance().apply {
         userAgentValue = context.packageName
-        // Для отладки включите логирование
-        setDebugMode(true)
+
     }
     return remember {
         MapView(context).apply {
@@ -201,6 +279,13 @@ fun Screen2(navController: NavController, title: String) {
 
 @Composable
 fun Screen3(navController: NavController, title: String){
+    val viewModel: TransportViewModel = viewModel()
+
+    val coordinates by viewModel.coordinates.collectAsState()
+
+    LaunchedEffect(title) {
+        viewModel.startUpdates(title)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -212,7 +297,9 @@ fun Screen3(navController: NavController, title: String){
             Text("Назад")
         }
         Box(modifier = Modifier) {
-            OsmMap()
+            OsmMap(coordinates = coordinates,
+                routeNumber = title
+            )
         }
     }
 }
