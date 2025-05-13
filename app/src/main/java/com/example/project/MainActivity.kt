@@ -65,6 +65,8 @@ import org.osmdroid.views.overlay.Marker
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Configuration.getInstance().load(applicationContext, getSharedPreferences("osm", MODE_PRIVATE))
+        Configuration.getInstance().userAgentValue = packageName
         setContent {
             ProjectTheme {
                 App()
@@ -75,11 +77,11 @@ class MainActivity : ComponentActivity() {
 
 class TransportRepository {
     private val client = OkHttpClient()
-    private val baseUrl = "?"
+    private val baseUrl = "http://192.168.0.31:3000"
 
-    suspend fun getCoordinates(routeNumber: String): List<Pair<Double, Double>> {
+    suspend fun getCoordinates(type: String, routeNumber: String): List<Pair<Double, Double>> {
         val request = Request.Builder()
-            .url("$baseUrl/$routeNumber")
+            .url("$baseUrl/$type/$routeNumber")
             .build()
 
         return withContext(Dispatchers.IO) {
@@ -108,13 +110,13 @@ class TransportViewModel : ViewModel() {
 
     private var updateJob: Job? = null
 
-    fun startUpdates(routeNumber: String) {
+    fun startUpdates(type: String, routeNumber: String) {
         updateJob?.cancel()
 
         updateJob = viewModelScope.launch {
             while (true) {
                 try {
-                    _coordinates.value = repository.getCoordinates(routeNumber)
+                    _coordinates.value = repository.getCoordinates(type, routeNumber)
                 } catch (e: Exception) {
                     Log.e("Transport", "Ошибка обновления", e)
                 }
@@ -136,21 +138,21 @@ fun OsmMap(coordinates: List<Pair<Double, Double>>, routeNumber: String) {
         with(view) {
             view.overlays.clear()
             coordinates.forEach { (lat, lon) ->
-                val marker = Marker(mapView)
-                marker.position = GeoPoint(lat,lon)
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                mapView.overlays.add(marker)
-                mapView.invalidate()
+                Marker(this).apply {
+                    position = GeoPoint(lat, lon)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    overlays.add(this)
+                }
             }
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
 
             controller.setZoom(12.0)
             controller.setCenter(org.osmdroid.util.GeoPoint(56.8519, 60.6122))
+            invalidate()
         }
     }
 
-    // Управление жизненным циклом
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -200,9 +202,11 @@ fun App() {
                 navController = navController
             )
         }
-        composable("screen3/{title}") { backStackEntry ->
+        composable("screen3/{type}/{title}") { backStackEntry ->
             val title = backStackEntry.arguments?.getString("title") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: ""
             Screen3(
+                type = type,
                 title = title,
                 navController = navController
             )
@@ -264,7 +268,7 @@ fun Screen2(navController: NavController, title: String) {
         ){
             for(el in numbers){
                 Button(
-                    onClick = { navController.navigate("screen3/$el") },
+                    onClick = { navController.navigate("screen3/$title/$el") },
                 ) {
                     Text(el)
                 }
@@ -278,13 +282,13 @@ fun Screen2(navController: NavController, title: String) {
 
 
 @Composable
-fun Screen3(navController: NavController, title: String){
+fun Screen3(navController: NavController,type: String, title: String){
     val viewModel: TransportViewModel = viewModel()
 
     val coordinates by viewModel.coordinates.collectAsState()
 
-    LaunchedEffect(title) {
-        viewModel.startUpdates(title)
+    LaunchedEffect(type, title) {
+        viewModel.startUpdates(type, title)
     }
     Column(
         modifier = Modifier
