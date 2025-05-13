@@ -42,7 +42,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -136,6 +138,7 @@ fun OsmMap(coordinates: List<Pair<Double, Double>>, routeNumber: String) {
         modifier = Modifier.fillMaxSize()
     ) { view ->
         with(view) {
+
             view.overlays.clear()
             coordinates.forEach { (lat, lon) ->
                 Marker(this).apply {
@@ -147,9 +150,13 @@ fun OsmMap(coordinates: List<Pair<Double, Double>>, routeNumber: String) {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
 
-            controller.setZoom(12.0)
-            controller.setCenter(org.osmdroid.util.GeoPoint(56.8519, 60.6122))
             invalidate()
+        }
+    }
+    LaunchedEffect(Unit) {
+        mapView.apply {
+            controller.setZoom(12.0)
+            controller.setCenter(GeoPoint(56.8519, 60.6122))
         }
     }
 
