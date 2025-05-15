@@ -56,6 +56,7 @@ import java.io.IOException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,13 +78,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class Coordinate(
+    val latitude: Double,
+    val longitude: Double
+)
+
+data class ApiResponse(
+    val coordinates: List<Coordinate>
+)
+
 class TransportRepository {
     private val client = OkHttpClient()
-    private val baseUrl = "http://192.168.0.31:3000"
-
+    private val baseUrl = "http://ykengo.ru:6969/stops"
+    private val gson = Gson()
     suspend fun getCoordinates(type: String, routeNumber: String): List<Pair<Double, Double>> {
         val request = Request.Builder()
-            .url("$baseUrl/$type/$routeNumber")
+            .url("$baseUrl/$routeNumber")
             .build()
 
         return withContext(Dispatchers.IO) {
@@ -96,9 +106,19 @@ class TransportRepository {
     }
 
     private fun parseCoordinates(json: String): List<Pair<Double, Double>> {
-        val type = object : TypeToken<List<List<Double>>>() {}.type
-        return Gson().fromJson<List<List<Double>>>(json, type)
-            .map { it[0] to it[1] }
+        return try {
+            val response = gson.fromJson(json, ApiResponse::class.java)
+
+            response.coordinates.map { coord ->
+                coord.latitude to coord.longitude
+            }
+        } catch (e: JsonSyntaxException) {
+            Log.e("JSON_PARSE", "Invalid JSON format", e)
+            emptyList()
+        } catch (e: Exception) {
+            Log.e("PARSE", "Unexpected parsing error", e)
+            emptyList()
+        }
     }
 }
 
@@ -261,7 +281,7 @@ fun Screen2(navController: NavController, title: String) {
         var numbers = arrayOf("")
         when (title){
             "автобус" -> {
-                numbers = arrayOf("06", "24", "24с", "25", "28", "40", "41", "42", "43", "043", "44", "45", "46", "47", "48", "49", "50", "51", "52", "053", "53", "054", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "85", "86", "87", "88", "89", "90", "91", "91м", "92", "93", "94", "95", "96", "96б", "97", "98м", "98", "99")
+                numbers = arrayOf("40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63","64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83","84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99")
             }
             "троллейбус" -> {
                 numbers = arrayOf("25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39")
