@@ -63,15 +63,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.overlay.Marker
+import com.example.project.ThemeManager
 
 class MainActivity : ComponentActivity() {
+    private lateinit var themeManager: ThemeManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        themeManager = ThemeManager(this)
         Configuration.getInstance().load(applicationContext, getSharedPreferences("osm", MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = packageName
+        
         setContent {
-            ProjectTheme {
-                App()
+            ProjectTheme(darkTheme = themeManager.isDarkTheme) {
+                App(themeManager)
             }
         }
     }
@@ -193,40 +198,48 @@ fun rememberMapView(): MapView {
 }
 
 @Composable
-fun App() {
+fun App(themeManager: ThemeManager) {
     val navController = rememberNavController()
-    NavHost(
-        navController = navController,
-        startDestination = "screen1"
-    ) {
-        composable("screen1") {
-            Screen1(navController)
-        }
-        composable("screen2/{title}") { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title") ?: ""
-            Screen2(
-                title = title,
-                navController = navController
-            )
-        }
-        composable("screen3/{type}/{title}") { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title") ?: ""
-            val type = backStackEntry.arguments?.getString("type") ?: ""
-            Screen3(
-                type = type,
-                title = title,
-                navController = navController
-            )
+    Scaffold { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = "screen1",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable("screen1") {
+                Screen1(navController, themeManager)
+            }
+            composable("screen2/{title}") { backStackEntry ->
+                val title = backStackEntry.arguments?.getString("title") ?: ""
+                Screen2(
+                    title = title,
+                    navController = navController
+                )
+            }
+            composable("screen3/{type}/{title}") { backStackEntry ->
+                val title = backStackEntry.arguments?.getString("title") ?: ""
+                val type = backStackEntry.arguments?.getString("type") ?: ""
+                Screen3(
+                    type = type,
+                    title = title,
+                    navController = navController
+                )
+            }
         }
     }
 }
 
 @Composable
-fun Screen1(navController: NavController) {
+fun Screen1(navController: NavController, themeManager: ThemeManager) {
     Column(
         modifier = Modifier
             .fillMaxSize()
     ) {
+        Button(
+            onClick = { themeManager.toggleTheme() }
+        ) {
+            Text(if (themeManager.isDarkTheme) "Светлая" else "Темная")
+        }
         Text("Выберите транспорт:")
         Button(
             onClick = { navController.navigate("screen2/автобус") },
@@ -243,6 +256,7 @@ fun Screen1(navController: NavController) {
         ) {
             Text("трамвай")
         }
+
     }
 }
 
