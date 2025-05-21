@@ -24,6 +24,10 @@
         "source": "com.example.project.app-main-57:/mipmap-hdpi/ic_launcher.webp"
     },
     {
+        "merged": "com.example.project.app-debug-55:/drawable_ic_transport_stop.xml.flat",
+        "source": "com.example.project.app-main-57:/drawable/ic_transport_stop.xml"
+    },
+    {
         "merged": "com.example.project.app-debug-55:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
         "source": "com.example.project.app-main-57:/mipmap-xxxhdpi/ic_launcher_round.webp"
     },
@@ -34,6 +38,10 @@
     {
         "merged": "com.example.project.app-debug-55:/xml_data_extraction_rules.xml.flat",
         "source": "com.example.project.app-main-57:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.example.project.app-debug-55:/drawable_stop_marker.xml.flat",
+        "source": "com.example.project.app-main-57:/drawable/stop_marker.xml"
     },
     {
         "merged": "com.example.project.app-debug-55:/mipmap-xxxhdpi_ic_launcher.webp.flat",

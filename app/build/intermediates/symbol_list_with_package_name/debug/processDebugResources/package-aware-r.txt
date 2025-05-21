@@ -91,6 +91,7 @@ drawable ic_menu_compass
 drawable ic_menu_mapmode
 drawable ic_menu_mylocation
 drawable ic_menu_offline
+drawable ic_transport_stop
 drawable marker_default
 drawable marker_default_focused_base
 drawable moreinfo_arrow
@@ -119,6 +120,7 @@ drawable previous
 drawable round_navigation_white_48
 drawable sharp_add_black_36
 drawable sharp_remove_black_36
+drawable stop_marker
 drawable twotone_navigation_black_48
 drawable zoom_in
 drawable zoom_out

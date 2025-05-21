@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.edit
 
 class ThemeManager(context: Context) {
     private val prefs = context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
@@ -13,6 +14,6 @@ class ThemeManager(context: Context) {
     
     fun toggleTheme() {
         isDarkTheme = !isDarkTheme
-        prefs.edit().putBoolean("is_dark_theme", isDarkTheme).apply()
+        prefs.edit { putBoolean("is_dark_theme", isDarkTheme) }
     }
 }
